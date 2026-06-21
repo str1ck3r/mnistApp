@@ -69,8 +69,14 @@ def predict():
     if not data or "image" not in data:
         return jsonify({"error": "Изображение не передано"}), 400
 
+    # Диагностика: сколько байт реально дошло до сервера
+    raw_value = data["image"]
+    app.logger.info(f"Длина строки image (символов): {len(raw_value)}")
+    app.logger.info(f"Первые 50 символов: {raw_value[:50]}")
+    app.logger.info(f"Последние 30 символов: {raw_value[-30:]}")
+
     try:
-        img_array = preprocess_image(data["image"])
+        img_array = preprocess_image(raw_value)
     except Exception as e:
         app.logger.exception("Ошибка обработки изображения")
         return jsonify({"error": f"Ошибка обработки изображения: {e}"}), 400
