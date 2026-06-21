@@ -72,6 +72,7 @@ def predict():
     try:
         img_array = preprocess_image(data["image"])
     except Exception as e:
+        app.logger.exception("Ошибка обработки изображения")
         return jsonify({"error": f"Ошибка обработки изображения: {e}"}), 400
 
     # Предсказание
