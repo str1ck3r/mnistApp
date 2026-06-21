@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Распознавание рукописных цифр — MNIST</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --ink: #1f2430;
+    --grid-line: #d8d2c4;
+    --accent: #c1502e;
+    --accent-soft: #e7c9bb;
+    --paper: #ffffff;
+    --muted: #8a8473;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+
+  .eyebrow {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 38px;
+    margin: 0 0 4px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  h1 span {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  .subtitle {
+    font-family: 'Courier New', monospace;
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 36px;
+    text-align: center;
+    max-width: 480px;
+    line-height: 1.5;
+  }
+
+  .workspace {
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .canvas-card {
+    background: var(--paper);
+    border: 1px solid var(--grid-line);
+    border-radius: 4px;
+    padding: 24px;
+    box-shadow: 0 2px 0 var(--grid-line);
+  }
+
+  .canvas-label {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  #drawCanvas {
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-color: #fff;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    cursor: crosshair;
+    touch-action: none;
+    display: block;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  button {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 11px 20px;
+    border-radius: 2px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  }
+
+  button:active { transform: translateY(1px); }
+
+  #predictBtn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  #predictBtn:hover { background: #a4421f; }
+  #clearBtn:hover { background: var(--bg); }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .result-card {
+    background: var(--paper);
+    border: 1px solid var(--grid-line);
+    border-radius: 4px;
+    padding: 24px;
+    width: 280px;
+    min-height: 300px;
+    box-shadow: 0 2px 0 var(--grid-line);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .result-label {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+
+  .big-digit {
+    font-size: 96px;
+    font-weight: 400;
+    text-align: center;
+    color: var(--ink);
+    line-height: 1;
+    margin: 8px 0 4px;
+    font-family: 'Georgia', serif;
+  }
+
+  .big-digit.placeholder {
+    color: var(--grid-line);
+  }
+
+  .confidence {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .confidence strong {
+    color: var(--accent);
+  }
+
+  .bars {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: auto;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .bar-digit {
+    width: 10px;
+    text-align: right;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--accent-soft);
+    transition: width 0.4s ease;
+  }
+
+  .bar-fill.top {
+    background: var(--accent);
+  }
+
+  .status-line {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 28px;
+    text-align: center;
+    min-height: 18px;
+  }
+
+  footer {
+    margin-top: 48px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    #drawCanvas { width: 260px; height: 260px; }
+    .result-card { width: 260px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow">F: R⁷⁸⁴ → R¹⁰</div>
+  <h1>Нарисуй <span>цифру</span></h1>
+  <p class="subtitle">
+    Свёрточная нейросеть, обученная на датасете MNIST,
+    попробует распознать цифру от 0 до 9 по твоему рисунку.
+  </p>
+
+  <div class="workspace">
+    <div class="canvas-card">
+      <div class="canvas-label">
+        <span>холст</span>
+        <span id="penInfo">280×280 → 28×28</span>
+      </div>
+      <canvas id="drawCanvas" width="280" height="280"></canvas>
+      <div class="controls">
+        <button id="clearBtn">Очистить</button>
+        <button id="predictBtn">Распознать</button>
+      </div>
+      <div class="status-line" id="statusLine"></div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-label">предсказание модели</div>
+      <div class="big-digit placeholder" id="bigDigit">?</div>
+      <div class="confidence" id="confidenceLine">нарисуй и нажми «Распознать»</div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </div>
+
+  <footer>реферат «Модели и методы теории вычислений» · нейросетевая модель CNN</footer>
+
+<script>
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+const clearBtn = document.getElementById('clearBtn');
+const predictBtn = document.getElementById('predictBtn');
+const statusLine = document.getElementById('statusLine');
+const bigDigit = document.getElementById('bigDigit');
+const confidenceLine = document.getElementById('confidenceLine');
+const barsContainer = document.getElementById('bars');
+
+let drawing = false;
+let lastX = 0;
+let lastY = 0;
+let hasDrawing = false;
+
+// Настройка стиля линии — толстая, как в MNIST, чёрная по белому
+ctx.lineWidth = 18;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+ctx.strokeStyle = '#1f2430';
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  hasDrawing = false;
+  bigDigit.textContent = '?';
+  bigDigit.classList.add('placeholder');
+  confidenceLine.textContent = 'нарисуй и нажми «Распознать»';
+  barsContainer.innerHTML = '';
+  statusLine.textContent = '';
+}
+
+clearCanvas();
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  if (e.touches && e.touches.length > 0) {
+    return {
+      x: (e.touches[0].clientX - rect.left) * scaleX,
+      y: (e.touches[0].clientY - rect.top) * scaleY
+    };
+  }
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  hasDrawing = true;
+  const pos = getPos(e);
+  lastX = pos.x;
+  lastY = pos.y;
+}
+
+function draw(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  lastX = pos.x;
+  lastY = pos.y;
+}
+
+function endDraw(e) {
+  drawing = false;
+}
+
+// Мышь
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', endDraw);
+canvas.addEventListener('mouseleave', endDraw);
+
+// Сенсорный экран (телефон/планшет)
+canvas.addEventListener('touchstart', startDraw, { passive: false });
+canvas.addEventListener('touchmove', draw, { passive: false });
+canvas.addEventListener('touchend', endDraw);
+
+clearBtn.addEventListener('click', clearCanvas);
+
+predictBtn.addEventListener('click', async () => {
+  if (!hasDrawing) {
+    statusLine.textContent = 'сначала нарисуй цифру';
+    return;
+  }
+
+  predictBtn.disabled = true;
+  statusLine.textContent = 'распознаю…';
+
+  const imageData = canvas.toDataURL('image/png');
+
+  try {
+    const response = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageData })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Ошибка сервера');
+    }
+
+    const result = await response.json();
+    showResult(result);
+    statusLine.textContent = '';
+  } catch (err) {
+    statusLine.textContent = 'ошибка: ' + err.message;
+  } finally {
+    predictBtn.disabled = false;
+  }
+});
+
+function showResult(result) {
+  bigDigit.textContent = result.digit;
+  bigDigit.classList.remove('placeholder');
+  confidenceLine.innerHTML = `уверенность <strong>${result.confidence}%</strong>`;
+
+  barsContainer.innerHTML = '';
+  result.probabilities.forEach((p, digit) => {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+
+    const label = document.createElement('span');
+    label.className = 'bar-digit';
+    label.textContent = digit;
+
+    const track = document.createElement('div');
+    track.className = 'bar-track';
+
+    const fill = document.createElement('div');
+    fill.className = 'bar-fill' + (digit === result.digit ? ' top' : '');
+    fill.style.width = p + '%';
+
+    track.appendChild(fill);
+    row.appendChild(label);
+    row.appendChild(track);
+    barsContainer.appendChild(row);
+  });
+}
+</script>
+
+</body>
+</html>
